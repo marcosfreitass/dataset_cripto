@@ -7,6 +7,9 @@ df = pd.read_excel("cryptos.xlsx")
 df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
 df['Year'] = df['Date'].dt.year
 df = df[(df['Year'] >= 2019) & (df['Year'] <= 2024)].dropna()
+df['Month'] = df['Date'].dt.to_period('M').dt.end_time
+df['Month'] = pd.to_datetime(df['Month'])
+
 
 # Dicionário com informações das criptomoedas
 cryptos = {
@@ -31,7 +34,7 @@ drop_style = {
     'width': '250px',
     'display': 'inline-block',
     'textAlign': 'center',
-    'fontSize': '22px',
+    'fontSize': '20px',
     'color':'black'
 }
 style_layout = {
@@ -71,6 +74,8 @@ app.layout = html.Div(style={
             {'label': 'Gráfico de Barra', 'value': 'bar'},
             {'label': 'Gráfico de Boxplot', 'value': 'box'},
             {'label': 'Gráfico de Dispersão', 'value': 'scatter'},
+            {'label': 'Gráfico de Linha PCT', 'value': 'line-pct'},
+            {'label': 'Gráfico de Barra PCT', 'value': 'bar-pct'},
         ],
         value='line',
         clearable=False,
@@ -133,13 +138,24 @@ def update_graph(selected_crypto, graph_type):
     elif graph_type == 'bar':
         data = data.groupby(['Year', 'Crypto'])['Adj Close'].mean().reset_index()
         fig = px.bar(data, x='Year', y='Adj Close', color='Crypto', barmode='group',
-                        color_discrete_map={crypto: cryptos[crypto]['color'] for crypto in cryptos.keys()})
+                        color_discrete_map={crypto: cryptos[crypto]['color'] for crypto in cryptos})
 
     elif graph_type == 'box':
-        fig = px.box(data, x='Crypto', y='Adj Close', color='Crypto', color_discrete_map={crypto: cryptos[crypto]['color'] for crypto in cryptos.keys()})
+        fig = px.box(data, x='Crypto', y='Adj Close', color='Crypto', color_discrete_map={crypto: cryptos[crypto]['color'] for crypto in cryptos})
 
     elif graph_type == 'scatter':
-        fig = px.scatter(data, x='Date', y='Adj Close', color='Crypto', color_discrete_map={crypto: cryptos[crypto]['color'] for crypto in cryptos.keys()})
+        fig = px.scatter(data, x='Date', y='Adj Close', color='Crypto', color_discrete_map={crypto: cryptos[crypto]['color'] for crypto in cryptos})
+    
+    elif graph_type == 'line-pct':
+        data = data.groupby(['Month','Crypto'])['Adj Close'].mean().reset_index()
+        data['Percent'] = data.groupby('Crypto')['Adj Close'].pct_change() * 100
+        fig = px.line(data, x='Month', y='Percent', color='Crypto', color_discrete_map={crypto: cryptos[crypto]['color'] for crypto in cryptos})
+    
+    elif graph_type == 'bar-pct':
+        data = data.groupby(['Year','Crypto'])['Adj Close'].mean().reset_index()
+        data['Percent'] = data.groupby('Crypto')['Adj Close'].pct_change() * 100
+        fig = px.bar(data, x='Year', y='Percent', color='Crypto', barmode='group',
+                        color_discrete_map={crypto: cryptos[crypto]['color'] for crypto in cryptos})
 
     # Atualizar layout do gráfico
     fig.update_layout(
@@ -181,7 +197,6 @@ def calcular_retorno(n_clicks, investimento, moeda_escolhida, ano_escolhido):
         if investimento is not None and moeda_escolhida is not None and ano_escolhido is not None:
             # Filtrando para obter o preço do primeiro dia do ano selecionado
             preco_compra = df[(df['Year'] == ano_escolhido) & (df['Crypto'] == moeda_escolhida) & (df['Date'] == df[df['Year'] == ano_escolhido]['Date'].min())]['Adj Close']
-
 
             # Obtendo o preço do último dia disponível
             preco_atual = df[df['Crypto'] == moeda_escolhida]['Adj Close'].iloc[-1]
