@@ -7,6 +7,7 @@ df = pd.read_excel("cryptos.xlsx")
 df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
 df['Year'] = df['Date'].dt.year
 df = df[(df['Year'] >= 2019) & (df['Year'] <= 2024)].dropna()
+# Setando a coluna mensal
 df['Month'] = df['Date'].dt.to_period('M').dt.end_time
 df['Month'] = pd.to_datetime(df['Month'])
 
